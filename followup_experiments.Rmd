@@ -1,0 +1,300 @@
+---
+title: "Follow Up Experiments"
+author: "Lillian Dillard"
+date: '2023-06-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(reshape)
+library(viridisLite)
+library(ggrepel)
+library(mdthemes)
+```
+
+```{r cars}
+colors <- c("#DEDEDE","#36454F", "#FFD8CC", "#b1615c")
+colors2 <- c("#DEDEDE","#36454F","#86888A","#636b59", "#FFD8CC", "#b1615c","#FFB6C1", "#dec5da")
+
+piotti_histidine <- read.csv("~/Documents/interactions_paper/piotti_histidine_piotti.csv", header = FALSE)
+hoyl_prop <- read.csv("~/Documents/interactions_paper/Hoyle-propionate.csv", header = FALSE)
+```
+
+## Clean up Piotti
+
+```{r}
+piotti_histidine$V1 <- as.factor(piotti_histidine$V1)
+piotti_histidine[-1] <- mutate_all(piotti_histidine[-1], function(x) as.numeric(as.character(x)))
+piotti_histidine [piotti_histidine <0 ]<- 0
+
+odd_indices <- seq(from = 1, to = ncol(piotti_histidine), by = 2)
+piotti_histidine <- piotti_histidine[, odd_indices]
+
+mean_ap <- aggregate(. ~ V1, piotti_histidine, mean)
+colnames(mean_ap) <- piotti_histidine[1,]
+mean_ap <- mean_ap[!grepl("hours", mean_ap$`1`),]
+mean_melt <- melt(mean_ap)
+colnames(mean_melt) <- c("sample", "time", "mean")
+
+sd_ap <- aggregate(. ~ V1, piotti_histidine, sd)
+colnames(sd_ap) <- piotti_histidine[1,]
+sd_ap <- sd_ap[!grepl("hours", sd_ap$`1`),]
+sd_melt <- melt(sd_ap)
+colnames(sd_melt) <- c("sample", "time", "sd")
+
+piotti <- merge(mean_melt, sd_melt)
+
+piotti$time <- as.numeric(as.character(piotti$time))
+piotti$sample <- as.factor(piotti$sample)
+piotti$mean <- as.numeric(as.character(piotti$mean))
+piotti$sd <- as.numeric(as.character(piotti$sd))
+piotti <- na.omit(piotti)
+```
+## Clean up Hoyl
+```{r}
+hoyl_prop$V1 <- as.factor(hoyl_prop$V1)
+odd_indices <- seq(from = 1, to = ncol(hoyl_prop), by = 2)
+hoyl_prop <- hoyl_prop[, odd_indices]
+
+mean_hoyl <- aggregate(. ~ V1, hoyl_prop, mean)
+colnames(mean_hoyl) <- hoyl_prop[1,]
+mean_hoyl <- mean_hoyl[!grepl("hours", mean_hoyl$`8`),]
+mean_melt_hoyl <- melt(mean_hoyl)
+colnames(mean_melt_hoyl) <- c("sample", "time", "mean")
+
+sd_hoyl <- aggregate(. ~ V1, hoyl_prop, sd)
+colnames(sd_hoyl) <- hoyl_prop[1,]
+sd_hoyl <- sd_hoyl[!grepl("hours", sd_hoyl$`8`),]
+sd_melt_hoyl <- melt(sd_hoyl)
+colnames(sd_melt_hoyl) <- c("sample", "time", "sd")
+
+hoyl <- merge(mean_melt_hoyl, sd_melt_hoyl)
+
+hoyl$time <- as.numeric(as.character(hoyl$time))
+hoyl$sample <- as.factor(hoyl$sample)
+hoyl$mean <- as.numeric(as.character(hoyl$mean))
+hoyl$sd <- as.numeric(as.character(hoyl$sd))
+hoyl <- na.omit(hoyl)
+```
+Significant Growth Differences
+```{r}
+#nyciii spent vs nyciii + histidine: time 48 hours
+colnames(piotti_histidine) <- piotti_histidine[1,]
+piotti_histidine <- piotti_histidine[-1,]
+
+piotti_melted <- melt(piotti_histidine)
+colnames(piotti_melted) <- c("sample", "time", "OD600")
+piotti_melted$time <- as.numeric(as.character(piotti_melted$time))
+piotti_melted$OD600 <- as.numeric(as.character(piotti_melted$OD600))
+
+nyciii_48 <- piotti_melted %>% filter(sample == c("nyciii")& time == 21.70)
+nyciii_48_his <- piotti_melted %>% filter(sample == c("nyciii_0.1")& time == 21.70)
+result_nyciii48 <- t.test(nyciii_48_his$OD600, nyciii_48$OD600, alternative = "greater")
+print(result_nyciii48)
+
+#vaginalis spent vs vaginalis + propionic acid: time 35 hours
+colnames(hoyl_prop) <- hoyl_prop[1,]
+hoyl_prop <- hoyl_prop[-1,]
+
+hoyl_melted <- melt(hoyl_prop)
+colnames(hoyl_melted) <- c("sample", "time", "OD600")
+hoyl_melted$time <- as.numeric(as.character(hoyl_melted$time))
+hoyl_melted$OD600 <- as.numeric(as.character(hoyl_melted$OD600))
+
+hoyl_od <- hoyl_melted %>% filter(sample == c("hoyl")& time == 5.05)
+hoyl_0.01_od <- hoyl_melted %>% filter(sample == c("0.01%")& time == 5.05)
+result_vaginalis35 <- t.test(hoyl_0.01_od$OD600, hoyl_od$OD600, alternative = "greater")
+print(result_vaginalis35)
+```
+
+```{r pressure, echo=FALSE}
+input <- hoyl  %>% filter(time <= 24, sample %in% c("hoyl", "0.01%"))
+pdf(file='~/Documents/interactions_paper/hoyl_propionic_0.01.pdf', width=7, height=5)
+
+input %>%
+  ggplot(aes(x = time, y = mean, group = sample, fill = sample)) +
+  geom_line(aes(color=sample), size = 1)+
+  geom_ribbon(aes(ymin = mean-(0.5*sd), ymax = mean+(0.5*sd)), alpha = 0.25)+
+  scale_color_manual(values=c("#36454F","#DEDEDE"))+
+  scale_fill_manual(values = c("#36454F","#DEDEDE")) +
+  theme_classic()+
+  mdthemes::md_theme_classic() +
+  labs(x = "**Time (Hours)**",
+       y = '**Mean Growth OD[600]**',
+       title = "***H. timonensis* supplemented with propionic acid**")
+
+dev.off()
+```
+
+```{r pressure, echo=FALSE}
+input <- piotti %>% filter(sample == c("nyciii","nyciii_0.1") & time <= 48)
+
+pdf(file='~/Documents/interactions_paper/piotti_histidine.pdf', width=7, height=5)
+
+input %>%
+  ggplot(aes(x = time, y = mean, group = sample, fill = sample)) +
+  geom_line(aes(color=sample), size = 1)+
+  geom_ribbon(aes(ymin = mean-(0.5*sd), ymax = mean+(0.5*sd)), alpha = 0.25, show.legend = FALSE)+
+  scale_color_manual(values=colors)+
+  scale_fill_manual(values = colors) +
+  theme_classic()+
+  mdthemes::md_theme_classic() +
+  labs(x = "**Time (Hours)**",
+       y = '**Mean Growth OD[600]**',
+       title = "***G. piotti* supplemented with L-histidine**")+
+  ylim(0.00,0.3)
+dev.off()
+```
+
+```{r pressure, echo=FALSE}
+input <- piotti %>% filter(time <= 48)
+
+pdf(file='~/Documents/interactions_paper/piotti_histidine_all.pdf', width=7, height=5)
+
+input %>%
+  ggplot(aes(x = time, y = mean, group = sample, fill = sample)) +
+  geom_line(aes(color=sample), size = 1)+
+  scale_color_manual(values=colors2)+
+  scale_fill_manual(values = colors2) +
+  theme_classic()+
+  mdthemes::md_theme_classic() +
+  labs(x = "**Time (Hours)**",
+       y = '**Mean Growth OD[600]**',
+       title = "***G. piotti* supplemented with L-histidine**")+
+  scale_color_manual(name = "Media", labels = c("NYCIII", "NYCIII + 0.1% L-histidine",
+                                                "NYCIII + 1% L-histidine", "NYCIII + 10% L-histidine",
+                                                 "G.piotti spent", "G.piotti spent + 0.1% L-histidine",
+                                                "G.piotti spent + 1% L-histidine", "G.piotti spent + 10% L-histidine"),
+                      values = c("#DEDEDE","#36454F","#86888A","#636b59", "#FFD8CC", "#b1615c","#FFB6C1", "#dec5da"))+
+  ylim(0.00,0.3)
+dev.off()
+```
+
+```{r pressure, echo=FALSE}
+input <- piotti %>% filter(time <= 5)
+
+pdf(file='~/Documents/interactions_paper/piotti_histidine_all_oto5.pdf', width=7, height=5)
+
+input %>%
+  ggplot(aes(x = time, y = mean, group = sample, fill = sample)) +
+  geom_line(aes(color=sample), size = 1)+
+  scale_color_manual(values=colors2)+
+  scale_fill_manual(values = colors2) +
+  theme_classic()+
+  mdthemes::md_theme_classic() +
+  labs(x = "**Time (Hours)**",
+       y = '**Mean Growth OD[600]**',
+       title = "***G. piotti* supplemented with L-histidine**")+
+  scale_color_manual(name = "Media", labels = c("NYCIII", "NYCIII + 0.1% L-histidine",
+                                                "NYCIII + 1% L-histidine", "NYCIII + 10% L-histidine",
+                                                 "G.piotti spent", "G.piotti spent + 0.1% L-histidine",
+                                                "G.piotti spent + 1% L-histidine", "G.piotti spent + 10% L-histidine"),
+                      values = c("#DEDEDE","#36454F","#86888A","#636b59", "#FFD8CC", "#b1615c","#FFB6C1", "#dec5da"))+
+  ylim(0.00,0.15)
+dev.off()
+```
+
+Caffeate molarity Dot plot
+
+```{r}
+colors4 <- c("#b1615c","#36454F","#b1615c","#36454F")
+
+F1<- c(0.80,0,0)
+F2 <- c(0.15,0.15,0.15)
+A1 <- c(0,0, 0.73)
+A2 <- c(0.51, 0, 0)
+
+data <- data.frame(Category = rep(c("F. vaginae\nin NYCIII", "F. vaginae\nin G. piotti spent",
+                                    "A. christensii\nin NYCIII", "A. christensii\nin G. piotti spent"), each = 3),
+                   Value = c(F1, F2, A1, A2))
+pdf(file='~/Documents/interactions_paper/caffeate.pdf', width=7, height=5)
+
+ggplot(data, aes(x = Category, y = Value, fill = Category)) +
+  geom_dotplot(binaxis = "y", stackdir = "center", dotsize = 1, alpha = .5, color = "white") +
+  labs(title = "Caffeate production in spent vs. enriched media",
+       x = NULL,
+       y = expression(paste("Caffeate ", mu, "M")))+
+  theme_classic()+
+  theme(axis.title.y = element_text(face = "bold", size = 12),
+        plot.title = element_text(face = "bold", size = 14),
+        legend.position = "none")+
+  scale_fill_manual(values = colors4)
+
+dev.off()
+```
+## Caffeic Acid HPLC Core Graph
+### only looking at fannyhessea
+
+```{r}
+#import data
+caffeic_acid_data <-read.csv("~/Documents/interactions_paper/caffeicacid_data.csv")
+caffeic_acid_data$Molecule <- NULL
+caffeic_acid_data$Sample <- NULL
+caffeic_acid_data$Group <- as.factor(caffeic_acid_data$Group)
+caffeic_acid_data$Conc <- as.numeric(caffeic_acid_data$Conc)
+```
+
+p-value = 0.071
+t = 1.74
+```{r}
+colors4 <- c("#dec5da","#36454F")
+caffeic_acid_data <- filter(caffeic_acid_data, Group == "Fv-Gp" | Group == "Fv-NYCIII")
+fv_p <- filter(caffeic_acid_data, Group == "Fv-Gp") %>% select(Conc)
+fv_nyciii <- filter(caffeic_acid_data, Group == "Fv-NYCIII") %>% select(Conc)
+
+
+t_test_result <- t.test(fv_p, fv_nyciii, alternative = "greater")
+
+plot <- ggplot(caffeic_acid_data, aes(x = Group, y = Conc, fill = Group)) +
+  geom_boxplot(alpha =0.4) +
+  geom_jitter(aes(color = Group), width = 0.2) +  
+  labs(x = NULL, y = "Caffeic Acid Concentration\n ng/mL",
+       title = "F. vaginae Caffeic Acid Production") +
+  theme_classic()+
+  scale_x_discrete(labels = c("G.piotti Spent Media", "NYCIII Media"))+
+  theme(axis.title.y = element_text(face = "bold", size = 12),
+        plot.title = element_text(face = "bold", size = 14),
+        legend.position = "none",
+        axis.text.x = element_text(size = 12, color = "black")) +
+  scale_fill_manual(values = colors4)+
+  scale_color_manual(values = colors4)
+
+ggsave("caffeicacid_vaginae.pdf", plot, width = 5, height = 4)
+```
+
+vk2 caffeic acid study
+```{r}
+vk2_data <- read.csv("~/Documents/interactions_paper/vk2cell_caffeate.csv")
+vk2_data$X <- as.factor(vk2_data$X)
+control <- vk2_data %>% filter(X == "control")
+caffeate <- vk2_data %>% filter(X == "caffeate")
+estradiol <- vk2_data %>% filter(X == "estradiol")
+
+print(t.test(estradiol$IL1b, control$IL1b, alternative = "greater")) #null
+print(t.test(estradiol$TNFa, control$TNFa, alternative = "greater")) #null
+print(t.test(estradiol$ESR1, control$ESR1, alternative = "greater")) #null
+
+print(t.test(caffeate$IL1b, control$IL1b, alternative = "greater")) #p-value = 0.076
+print(t.test(caffeate$TNFa, control$TNFa, alternative = "greater")) #p-value = 0.069
+print(t.test(caffeate$ESR1, control$ESR1, alternative = "greater")) 
+
+print(t.test(caffeate$IL1b, estradiol$IL1b, alternative = "greater")) #p-value = 0.086
+print(t.test(caffeate$TNFa, estradiol$TNFa, alternative = "greater")) #p-value = 0.034
+print(t.test(caffeate$ESR1, estradiol$ESR1)) #null
+
+vk2_data <- melt(vk2_data)
+vk2_data$variable <- as.factor(vk2_data$variable)
+vk2_data$X <- as.factor(vk2_data$X)
+
+ggplot(vk2_data, aes(x = variable, y = value, fill = X)) +
+  geom_boxplot(alpha =0.4) + theme_classic()
+
+```
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
