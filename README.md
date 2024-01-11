@@ -2,7 +2,7 @@
 
 In this study, we analyzed metagenomic data obtained from human vaginal swabs to generate in silico predictions of BV-associated bacterial metabolic interactions via genome-scale metabolic network reconstructions (GENREs). We grew several of the most common co-occurring bacteria (Prevotella amnii, Prevotella buccalis, Hoylesella timonensis, Lactobacillus iners, Fannyhessea vaginae, and Aerrococcus christenssii) on the spent media of Gardnerella species and performed metabolomics to identify potential mechanisms of metabolic interaction.
 
-## [Analysis]
+## [Analysis](https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/Analysis)
 Followup analysis of the simulations output. 
 
 ## [Simulations](https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/Simulations)
