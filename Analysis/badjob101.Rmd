@@ -1,0 +1,697 @@
+---
+title: "Interactions"
+author: "Lillian Dillard"
+date: '2022-11-21'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(plyr)
+library(readr)
+library(data.table)
+library(stringr)
+library(ggplot2)
+library(tidyr)
+library(corrplot)
+library(gdata)
+library(readxl)
+library(vegan)
+library(pheatmap)
+library(viridis)
+library(gg.gap) 
+
+
+colors2 <- c("#9DAD9D","#224B5D")
+```
+
+```{r setup, include=FALSE}
+competition_flux_change <- read_delim("~/vaginal_microbiome/interactions/competition_flux_change_all.csv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE) %>% na.omit() %>% select(-X1)
+competition_metabolites_all <- read_delim("~/vaginal_microbiome/interactions/competition_metabolites_all.csv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE) %>% na.omit() %>% select(-c(X1,iteration, times_contested))
+
+mutual_metabolites_all <- read_delim("~/vaginal_microbiome/interactions/mutual_metabolites_all.csv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE) %>% na.omit() %>% filter(direction != "base_medium") %>% select(-c(X1, iteration))
+                                                                                                                                  
+mutual_flux_change <- read_delim("~/vaginal_microbiome/interactions/mutual_flux_change_all.csv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE) %>% na.omit() %>% select(-X1)
+
+Strain_Reclassifications <- read_excel("~/Documents/interactions_paper/Strain_Reclassifications.xlsx")
+
+BVBRC_genome <- read_excel("~/Documents/interactions_paper/BVBRC_genome.xls", 
+    col_types = c("text", "text", "skip", 
+        "skip", "text", "skip", "skip", "text", 
+        "skip", "skip", "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", 
+        "skip", "skip", "skip", "skip", 
+        "skip", "skip"))
+
+BVBRC_genome$`Assembly Accession` <- gsub("GCF","GCA",BVBRC_genome$`Assembly Accession`)
+
+
+metadata <- full_join(BVBRC_genome, Strain_Reclassifications)
+remove_genomes <- c("2702.504", "2702.496", "2702.490", "2702.348", "2702.299", "293424.12",
+                       "293424.14","2702.477","293424.19","2702.494","293424.16",
+                    "2702.4769999999999","2702.4899999999998", "2702.4940000000001",
+                    "2702.4960000000001", "2702.5039999999999", "293424.14000000001",
+                    "293424.15999999997", "626522.30000000005", "2702.9299999999998",
+                    "2702.9400000000001", "2702.9499999999998", "2702.96")
+metadata <- metadata[ ! metadata$`Genome ID` %in% remove_genomes,]
+
+metadata$Reclassification <- replace_na(metadata$Reclassification, "No Ascension")
+
+metadata$Reclassification <- as.factor(metadata$Reclassification)
+```
+
+# Mutualism
+```{r}
+#Remove erroneous 13 genomes now
+remove_genomes <- c("2702.504", "2702.496", "2702.490", "2702.348", "2702.299", "293424.12",
+                       "293424.14","2702.477","293424.19","2702.494","293424.16", "293424.21",
+                    "626522.3", "2702.93", "2702.94", "2702.95", "2702.96")
+
+competition_metabolites_all$genre1 <- gsub(".*/","",competition_metabolites_all$genre1)
+competition_metabolites_all$genre1 <- gsub(".sbml*","",competition_metabolites_all$genre1)
+competition_metabolites_all$genre2 <- gsub(".*/","",competition_metabolites_all$genre2)
+competition_metabolites_all$genre2 <- gsub(".sbml*","",competition_metabolites_all$genre2)
+
+mutual_metabolites_all$genre1 <- gsub(".*/","",mutual_metabolites_all$genre1)
+mutual_metabolites_all$genre1 <- gsub(".sbml*","",mutual_metabolites_all$genre1)
+mutual_metabolites_all$genre2 <- gsub(".*/","",mutual_metabolites_all$genre2)
+mutual_metabolites_all$genre2 <- gsub(".sbml*","",mutual_metabolites_all$genre2)
+
+competition_metabolites_all <- competition_metabolites_all[ ! competition_metabolites_all$genre1 %in% remove_genomes & ! competition_metabolites_all$genre2 %in% remove_genomes, ]
+mutual_metabolites_all <- mutual_metabolites_all[ ! mutual_metabolites_all$genre1 %in% remove_genomes & ! mutual_metabolites_all$genre2 %in% remove_genomes, ]
+
+competition_flux_change$GENRE1_Flux_Dec <- (as.numeric(competition_flux_change$GENRE1_preFlux) - as.numeric(competition_flux_change$GENRE1_compFlux))
+
+competition_flux_change$GENRE2_Flux_Dec <- (as.numeric(competition_flux_change$GENRE2_preFlux) - as.numeric(competition_flux_change$GENRE2_compFlux)) 
+
+competition_flux_change <- competition_flux_change %>% select(-c(2:5))
+
+competition_flux_change[c('GENRE1', 'GENRE2')] <- str_split_fixed(competition_flux_change$Comparison, ',', 2)
+competition_flux_change$Comparison <- NULL
+competition_flux_change$GENRE1 <- gsub(".*/","",competition_flux_change$GENRE1)
+competition_flux_change$GENRE1 <- gsub(".sb.*","",competition_flux_change$GENRE1)
+competition_flux_change$GENRE2 <- gsub(".*/","",competition_flux_change$GENRE2)
+competition_flux_change$GENRE2 <- gsub(".sb.*","",competition_flux_change$GENRE2)
+competition_flux_change$GENRE2 <- gsub(".xml.*","",competition_flux_change$GENRE2)
+competition_flux_change$GENRE1 <- gsub(".xml.*","",competition_flux_change$GENRE1)
+
+competition_flux_change <- competition_flux_change[ ! competition_flux_change$GENRE1 %in% remove_genomes & ! competition_flux_change$GENRE2 %in% remove_genomes, ]
+
+mutual_flux_change[c('GENRE1', 'GENRE2')] <- str_split_fixed(mutual_flux_change$Comparison, ',', 2)
+mutual_flux_change$Comparison <- NULL
+mutual_flux_change$GENRE1 <- gsub(".*/","",mutual_flux_change$GENRE1)
+mutual_flux_change$GENRE1 <- gsub(".sb.*","",mutual_flux_change$GENRE1)
+mutual_flux_change$GENRE2 <- gsub(".*/","",mutual_flux_change$GENRE2)
+mutual_flux_change$GENRE2 <- gsub(".sb.*","",mutual_flux_change$GENRE2)
+mutual_flux_change$GENRE2 <- gsub(".xml.*","",mutual_flux_change$GENRE2)
+mutual_flux_change$GENRE1 <- gsub(".xml.*","",mutual_flux_change$GENRE1)
+
+mutual_flux_change <- mutual_flux_change[ ! mutual_flux_change$GENRE1 %in% remove_genomes & ! mutual_flux_change$GENRE2 %in% remove_genomes, ]
+
+```
+
+## tSNE
+```{r}
+alltheinfo <- full_join(mutual_flux_change, competition_flux_change)
+GENRE1_mutualism <- data.frame(alltheinfo$GENRE1, alltheinfo$GENRE2,alltheinfo$GENRE1_Flux_Inc)
+GENRE2_mutualism <- data.frame(alltheinfo$GENRE2, alltheinfo$GENRE1,alltheinfo$GENRE2_Flux_Inc)
+
+colnames(GENRE1_mutualism) <- c("GENRE1", "GENRE2","GENRE1_Flux_Inc")
+colnames(GENRE2_mutualism) <- c("GENRE1", "GENRE2","GENRE1_Flux_Inc")
+GENRE_mutualism <- rbind(GENRE1_mutualism, GENRE2_mutualism)
+
+GENRE_mutualism <- pivot_wider(GENRE_mutualism, names_from = "GENRE2", values_from ="GENRE1_Flux_Inc")
+
+metadata$`Genome ID`<- as.character(as.numeric(metadata$`Genome ID`))
+colnames(metadata)[1]<- "GENRE1"
+
+GENRE_mutualism <- left_join(GENRE_mutualism, metadata)
+GENRE <- GENRE_mutualism$GENRE1
+GENRE_mutualism <- subset(GENRE_mutualism, select = -c(`Genome Name`,`Strain`,`Assembly Accession`, GENRE1))
+
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-1","Gardnerella-1,2,3,4",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-2","Gardnerella-1,2,3,4",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-3","Gardnerella-1,2,3,4",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-4","Gardnerella-1,2,3,4",GENRE_mutualism$Reclassification)
+
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-5","Gardnerella-5,6,7,8,9",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-6","Gardnerella-5,6,7,8,9",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-7","Gardnerella-5,6,7,8,9",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-8","Gardnerella-5,6,7,8,9",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella-9","Gardnerella-5,6,7,8,9",GENRE_mutualism$Reclassification)
+
+GENRE_mutualism$Reclassification <- gsub("Gardnerella piotii A","Gardnerella piotti",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella piotii B","Gardnerella piotti",GENRE_mutualism$Reclassification)
+
+GENRE_mutualism$Reclassification <- gsub("Gardnerella vaginalis A","Gardnerella vaginalis",GENRE_mutualism$Reclassification)
+GENRE_mutualism$Reclassification <- gsub("Gardnerella vaginalis B","Gardnerella vaginalis",GENRE_mutualism$Reclassification)
+
+GENRE_mutualism$Reclassification <- gsub("No Ascension","Unknown",GENRE_mutualism$Reclassification)
+GENRE_mutualism[is.na(GENRE_mutualism)] <- "Unknown"
+```
+
+```{r model3_NMDS, echo=TRUE}
+response <- as.factor(GENRE_mutualism$Reclassification)
+input_mutualism <- subset(GENRE_mutualism, select=-c(Reclassification))
+input_mutualism <- mutate_all(input_mutualism, function(x) as.numeric(as.character(x)))
+input_mutualism[is.na(input_mutualism)] <- 0
+
+set.seed(10)
+
+library(Rtsne)
+tsne_out <- Rtsne(input_mutualism, perplexity =14, max_iter = 50000)
+tsne_plot <- data.frame(x = tsne_out$Y[,1],
+                        y = tsne_out$Y[,2])
+tsne_plot$model <- response
+```
+
+```{r}
+colors3 <- c("#f0a04b","#613daa","#b1615c","#d88782","#e3aba7","#dec5da","#edd7d9","#ffe6b7","#c3c20e","#72bcd5","#c1d1aa","#97c684","#466c4b","#D4D4D4")
+
+colors4 <- c("#f0a04b","#613daa","#e3aba7","#c3c20e","#72bcd5","#97c684","#D4D4D4")
+```
+
+```{r}
+pdf(file='~/Documents/interactions_paper/mutualism_tSNE_complex.pdf', width=7, height=7)
+
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y,colour=model),size=2) +
+  theme_classic() + 
+  theme(axis.title.x=element_blank(),
+        axis.title.y = element_blank()) +
+  scale_color_manual(values = colors3, name = "Bacterial Classification") +
+  ggtitle("Mutualism Flux tSNE")+
+  theme(plot.title = element_text(hjust = 0.5, size = 15, face="bold"),
+        legend.title = element_text(face = "bold"), legend.text = element_text(face = "italic", size = 10))
+
+dev.off()
+```
+
+## tSNE Simplified
+```{r}
+response <- gsub("Prevotella amnii","Prevotella",response)
+response <- gsub("Prevotella bivia","Prevotella",response)
+response <- gsub("Prevotella tannerae","Prevotella",response)
+response <- gsub("Prevotella buccalis","Prevotella",response)
+response <- gsub("Gardnerella vaginalis", "Gardnerella",response)
+response <- gsub("Gardnerella leopoldii", "Gardnerella",response)
+response <- gsub("Gardnerella swidsinskii", "Gardnerella",response)
+response <- gsub("Gardnerella piotti", "Gardnerella",response)
+response <- gsub("Gardnerella-1,2,3,4", "Gardnerella",response)
+response <- gsub("Gardnerella-5,6,7,8,9", "Gardnerella",response)
+
+tsne_plot$model <- response
+```
+
+```{r}
+pdf(file='~/Documents/interactions_paper/mutualism_tSNE_simple.pdf', width=7, height=7)
+
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y,colour=model),size=2) +
+  theme_classic() + 
+  theme(axis.title.x=element_blank(),
+        axis.title.y = element_blank()) +
+  scale_color_manual(values = colors4, name = "Bacterial Classification") +
+  ggtitle("Mutualism Flux tSNE")+
+  theme(plot.title = element_text(hjust = 0.5, size = 15, face="bold"),
+        legend.title = element_text(face = "bold"), legend.text = element_text(face = "italic", size = 10))
+
+dev.off()
+```
+
+
+```{r}
+annotation_row <- data.frame(
+  Bacterial_Species = as.factor(response)
+)
+
+annoCol = list(Bacterial_Species = c(`Aerococcus christensenii` = "#f0a04b",
+                                     `Fannyhessea vaginae`="#613daa",
+                                     `Gardnerella`= "#e3aba7",
+                                     `Lactobacillus iners` = "#72bcd5",
+                                     `Hoylesella timonensis` = "#c3c20e",
+                                     `Prevotella` = "#97c684",
+                                     `Unknown`="#D4D4D4"))
+
+
+rownames(annotation_row) <- GENRE
+rownames(input_mutualism) <- GENRE
+```
+
+```{r}
+library(RColorBrewer)
+pdf(file='~/Documents/interactions_paper/mutualism_heatmap.pdf', width=10, height=7)
+pheatmap(input_mutualism,  border_color = NA,
+         show_rownames = FALSE, 
+         annotation_names_col = FALSE,
+         clustering_method = "ward.D", color = colorRampPalette(brewer.pal(n = 7, name =
+  "Blues"))(10), cutree_rows = 5, cutree_cols = 3,
+         cellwidth = 2, cellheight = 2,
+         width = 10, height = 12, annotation_row = annotation_row,
+         annotation_col = annotation_row, annotation_colors = annoCol,
+         show_colnames = FALSE, annotation_names_row = FALSE)
+dev.off()
+```
+
+# Competition
+## tSNE
+```{r}
+GENRE1_competition <- data.frame(alltheinfo$GENRE1, alltheinfo$GENRE2,alltheinfo$GENRE1_Flux_Dec)
+GENRE2_competition <- data.frame(alltheinfo$GENRE2, alltheinfo$GENRE1,alltheinfo$GENRE2_Flux_Dec)
+
+colnames(GENRE1_competition) <- c("GENRE1", "GENRE2","GENRE1_Flux_Dec")
+colnames(GENRE2_competition) <- c("GENRE1", "GENRE2","GENRE1_Flux_Dec")
+GENRE_competition <- rbind(GENRE1_competition, GENRE2_competition)
+
+GENRE_competition <- pivot_wider(GENRE_competition, names_from = "GENRE2", values_from ="GENRE1_Flux_Dec")
+
+GENRE_competition <- left_join(GENRE_competition, metadata)
+competition_matrix <- left_join(GENRE_competition, metadata)
+GENRE <- GENRE_competition$GENRE1
+GENRE_competition <- subset(GENRE_competition, select = -c(`Genome Name`,`Strain`,`Assembly Accession`, GENRE1))
+
+GENRE_competition$Reclassification <- gsub("Gardnerella-1","Gardnerella-1,2,3,4",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella-2","Gardnerella-1,2,3,4",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella-3","Gardnerella-1,2,3,4",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella-4","Gardnerella-1,2,3,4",GENRE_competition$Reclassification)
+
+GENRE_competition$Reclassification <- gsub("Gardnerella-5","Gardnerella-5,6,7,8,9",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella-6","Gardnerella-5,6,7,8,9",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella-7","Gardnerella-5,6,7,8,9",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella-8","Gardnerella-5,6,7,8,9",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella-9","Gardnerella-5,6,7,8,9",GENRE_competition$Reclassification)
+
+GENRE_competition$Reclassification <- gsub("Gardnerella piotii A","Gardnerella piotti",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella piotii B","Gardnerella piotti",GENRE_competition$Reclassification)
+
+GENRE_competition$Reclassification <- gsub("Gardnerella vaginalis A","Gardnerella vaginalis",GENRE_competition$Reclassification)
+GENRE_competition$Reclassification <- gsub("Gardnerella vaginalis B","Gardnerella vaginalis",GENRE_competition$Reclassification)
+
+GENRE_competition$Reclassification <- gsub("No Ascension","Unknown",GENRE_competition$Reclassification)
+```
+
+```{r model3_NMDS, echo=TRUE}
+response <- as.factor(GENRE_competition$Reclassification)
+input_competition <- subset(GENRE_competition, select=-c(Reclassification))
+input_competition <- mutate_all(input_competition, function(x) as.numeric(as.character(x)))
+input_competition[is.na(input_competition)] <- 0
+
+set.seed(10)
+tsne_out <- Rtsne(input_competition, check_duplicates = FALSE, perplexity = 14, max_iter = 50000)
+tsne_plot <- data.frame(x = tsne_out$Y[,1],
+                        y = tsne_out$Y[,2])
+tsne_plot$model <- response
+```
+
+```{r}
+pdf(file='~/Documents/interactions_paper/competition_tSNE_complex.pdf', width=7, height=7)
+
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y,colour=model),size=2) +
+  theme_classic() + 
+  theme(axis.title.x=element_blank(),
+        axis.title.y = element_blank()) +
+  scale_color_manual(values = colors3, name = "Bacterial Classification") +
+  ggtitle("Competition Flux tSNE")+
+  theme(plot.title = element_text(hjust = 0.5, size = 15, face="bold"),
+        legend.title = element_text(face = "bold"), legend.text = element_text(face = "italic", size = 10))
+
+dev.off()
+```
+
+## tSNE Simplified
+```{r}
+response <- gsub("Prevotella amnii","Prevotella",response)
+response <- gsub("Prevotella bivia","Prevotella",response)
+response <- gsub("Prevotella tannerae","Prevotella",response)
+response <- gsub("Prevotella buccalis","Prevotella",response)
+response <- gsub("Gardnerella vaginalis", "Gardnerella",response)
+response <- gsub("Gardnerella leopoldii", "Gardnerella",response)
+response <- gsub("Gardnerella swidsinskii", "Gardnerella",response)
+response <- gsub("Gardnerella piotti", "Gardnerella",response)
+response <- gsub("Gardnerella-1,2,3,4", "Gardnerella",response)
+response <- gsub("Gardnerella-5,6,7,8,9", "Gardnerella",response)
+
+tsne_plot$model <- response
+```
+
+```{r}
+pdf(file='~/Documents/interactions_paper/competition_tSNE_simple.pdf', width=7, height=7)
+
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y,colour=model),size=2) +
+  theme_classic() + 
+  theme(axis.title.x=element_blank(),
+        axis.title.y = element_blank()) +
+  scale_color_manual(values = colors4, name = "Bacterial Classification") +
+  ggtitle("Competition Flux tSNE")+
+  theme(plot.title = element_text(hjust = 0.5, size = 15, face="bold"),
+        legend.title = element_text(face = "bold"), legend.text = element_text(face = "italic", size = 10))
+
+
+dev.off()
+```
+
+```{r}
+annotation_row <- data.frame(
+  Bacterial_Species = as.factor(response)
+)
+
+rownames(annotation_row) <- GENRE
+rownames(input_competition) <- GENRE
+```
+
+```{r}
+library(RColorBrewer)
+pdf(file='~/Documents/interactions_paper/competition_heatmap.pdf', width=10, height=7)
+
+pheatmap(input_competition,  border_color = NA,
+         show_rownames = FALSE, show_colnames = FALSE, cutree_rows = 4, cutree_cols = 3,
+         clustering_method = "ward.D", annotation_colors = annoCol,
+         cellwidth = 2, cellheight = 2,
+         color = colorRampPalette(brewer.pal(n = 7, name = "Blues"))(10),
+         width = 10, height = 12, annotation_row = annotation_row,
+         annotation_col = annotation_row, annotation_names_row = FALSE, annotation_names_col = FALSE)
+dev.off()
+```
+
+# Net Interactions Flux Values
+```{r}
+GENRE1_competition <- data.frame(alltheinfo$GENRE1, alltheinfo$GENRE2,alltheinfo$GENRE1_Flux_Dec)
+GENRE2_competition <- data.frame(alltheinfo$GENRE2, alltheinfo$GENRE1,alltheinfo$GENRE2_Flux_Dec)
+
+colnames(GENRE1_competition) <- c("GENRE1", "GENRE2","GENRE1_Flux_Dec")
+colnames(GENRE2_competition) <- c("GENRE1", "GENRE2","GENRE1_Flux_Dec")
+GENRE_competition <- rbind(GENRE1_competition, GENRE2_competition)
+
+GENRE1_mutualism <- data.frame(alltheinfo$GENRE1, alltheinfo$GENRE2,alltheinfo$GENRE1_Flux_Inc)
+GENRE2_mutualism <- data.frame(alltheinfo$GENRE2, alltheinfo$GENRE1,alltheinfo$GENRE2_Flux_Inc)
+
+colnames(GENRE1_mutualism) <- c("GENRE1", "GENRE2","GENRE1_Flux_Inc")
+colnames(GENRE2_mutualism) <- c("GENRE1", "GENRE2","GENRE1_Flux_Inc")
+GENRE_mutualism <- rbind(GENRE1_mutualism, GENRE2_mutualism)
+
+GENRE_net <- left_join(GENRE_competition, GENRE_mutualism)
+GENRE_net$netflux <- as.numeric(GENRE_net$GENRE1_Flux_Inc) - as.numeric(GENRE_net$GENRE1_Flux_Dec)
+GENRE_net$GENRE1_Flux_Inc <- NULL
+GENRE_net$GENRE1_Flux_Dec <- NULL
+
+GENRE_net <- pivot_wider(GENRE_net, names_from = "GENRE2", values_from ="netflux")
+
+GENRE_net <- left_join(GENRE_net, metadata)
+GENRE <- GENRE_net$GENRE1
+GENRE_net <- subset(GENRE_net, select = -c(`Genome Name`,`Strain`,`Assembly Accession`, GENRE1))
+
+GENRE_net$Reclassification <- gsub("Gardnerella-1","Gardnerella-1,2,3,4",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella-2","Gardnerella-1,2,3,4",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella-3","Gardnerella-1,2,3,4",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella-4","Gardnerella-1,2,3,4",GENRE_net$Reclassification)
+
+GENRE_net$Reclassification <- gsub("Gardnerella-5","Gardnerella-5,6,7,8,9",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella-6","Gardnerella-5,6,7,8,9",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella-7","Gardnerella-5,6,7,8,9",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella-8","Gardnerella-5,6,7,8,9",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella-9","Gardnerella-5,6,7,8,9",GENRE_net$Reclassification)
+
+GENRE_net$Reclassification <- gsub("Gardnerella piotii A","Gardnerella piotti",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella piotii B","Gardnerella piotti",GENRE_net$Reclassification)
+
+GENRE_net$Reclassification <- gsub("Gardnerella vaginalis A","Gardnerella vaginalis",GENRE_net$Reclassification)
+GENRE_net$Reclassification <- gsub("Gardnerella vaginalis B","Gardnerella vaginalis",GENRE_net$Reclassification)
+
+
+GENRE_net$Reclassification <- gsub("No Ascension","Unknown",GENRE_net$Reclassification)
+```
+
+## tSNE
+```{r model3_NMDS, echo=TRUE}
+response <- as.factor(GENRE_net$Reclassification)
+input_net <- subset(GENRE_net, select=-c(Reclassification))
+input_net <- mutate_all(input_net, function(x) as.numeric(as.character(x)))
+input_net[is.na(input_net)] <- 0
+
+set.seed(10)
+tsne_out <- Rtsne(input_net, check_duplicates = FALSE, perplexity = 14, max_iter = 50000)
+tsne_plot <- data.frame(x = tsne_out$Y[,1],
+                        y = tsne_out$Y[,2])
+tsne_plot$model <- response
+```
+
+```{r}
+pdf(file='~/Documents/interactions_paper/netflux_tSNE_complex.pdf', width=7, height=7)
+
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y,colour=model),size=2) +
+  theme_classic() + 
+  theme(axis.title.x=element_blank(),
+        axis.title.y = element_blank()) +
+  scale_color_manual(values = colors3, name = "Bacterial Species") +
+  ggtitle("Net Flux tSNE")+
+  theme(plot.title = element_text(hjust = 0.5, size = 15, face="bold"),
+        legend.title = element_text(face = "bold"), legend.text = element_text(face = "italic", size = 10))
+
+
+dev.off()
+```
+
+## tSNE Simplified
+```{r}
+response <- gsub("Prevotella amnii","Prevotella",response)
+response <- gsub("Prevotella bivia","Prevotella",response)
+response <- gsub("Prevotella tannerae","Prevotella",response)
+response <- gsub("Prevotella buccalis","Prevotella",response)
+response <- gsub("Gardnerella vaginalis", "Gardnerella",response)
+response <- gsub("Gardnerella leopoldii", "Gardnerella",response)
+response <- gsub("Gardnerella swidsinskii", "Gardnerella",response)
+response <- gsub("Gardnerella piotti", "Gardnerella",response)
+response <- gsub("Gardnerella-1,2,3,4", "Gardnerella",response)
+response <- gsub("Gardnerella-5,6,7,8,9", "Gardnerella",response)
+
+tsne_plot$model <- response
+```
+
+```{r}
+pdf(file='~/Documents/interactions_paper/netflux_tSNE_simple.pdf', width=7, height=7)
+
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y,colour=model),size=2) +
+  theme_classic() + 
+  theme(axis.title.x=element_blank(),
+        axis.title.y = element_blank()) +
+  scale_color_manual(values = colors4, name = "Bacterial Classification") +
+  ggtitle("Net Flux tSNE")+
+  theme(plot.title = element_text(hjust = 0.5, size = 15, face="bold"),
+        legend.title = element_text(face = "bold"), legend.text = element_text(face = "italic", size = 10))
+
+
+dev.off()
+```
+
+## Heatmap
+```{r}
+annotation_row <- data.frame(
+  Bacterial_Species = as.factor(response)
+)
+
+rownames(annotation_row) <- GENRE
+rownames(input_net) <- GENRE
+```
+
+```{r}
+pdf(file='~/Documents/interactions_paper/net_heatmap.pdf', width=10, height=7)
+
+pheatmap(input_net,  border_color = NA,
+         show_rownames = FALSE, show_colnames = FALSE, 
+         clustering_method = "ward.D", annotation_colors = annoCol,
+         cellwidth = 2, cellheight = 2, 
+         width = 10, height = 12, cutree_rows = 5, cutree_cols = 3,
+         annotation_row = annotation_row,
+         annotation_col = annotation_row,
+         annotation_names_col = FALSE, annotation_names_row = FALSE)
+dev.off()
+```
+
+#Competition vs Mutualism 
+## Single Points
+```{r}
+colnames(GENRE2_competition) <- c("GENRE2", "GENRE1", "GENRE2_Flux_Dec")
+colnames(GENRE2_mutualism) <- c("GENRE2", "GENRE1", "GENRE2_Flux_Inc")
+
+GENRE2_compvsmut <- full_join(GENRE2_competition, GENRE2_mutualism)
+GENRE2_compvsmut$GENRE1 <- NULL
+
+GENRE1_compvsmut <- full_join(GENRE1_competition, GENRE1_mutualism)
+GENRE1_compvsmut$GENRE2 <- NULL
+
+colnames(GENRE2_compvsmut) <- colnames(GENRE1_compvsmut)
+compvsmut <- rbind(GENRE1_compvsmut, GENRE2_compvsmut)
+
+colnames(metadata)[1] <- "GENRE1"
+compvsmut <- left_join(compvsmut, metadata)
+compvsmut <- subset(compvsmut, select = -c(`Genome Name`,`Strain`,`Assembly Accession`))
+
+compvsmut$GENRE1 <- as.factor(as.character(compvsmut$GENRE1))
+
+comp_averages <- with(compvsmut, tapply(GENRE1_Flux_Dec, GENRE1, mean)) %>% as.data.frame()
+colnames(comp_averages)[1] <- "Competition"
+comp_averages$GENRE1 <- rownames(comp_averages)
+
+mut_averages <- with(compvsmut, tapply(as.numeric(GENRE1_Flux_Inc), GENRE1, mean)) %>% as.data.frame()
+colnames(mut_averages)[1] <- "Mutualism"
+mut_averages$GENRE1 <- rownames(mut_averages)
+
+compvsmut_averages <- full_join(comp_averages,mut_averages)
+compvsmut_averages <- left_join(compvsmut_averages, metadata)
+compvsmut_averages <- subset(compvsmut_averages, select = -c(`Genome Name`,`Strain`,`Assembly Accession`, `GENRE1`))
+
+compvsmut_averages$Reclassification <- gsub("Gardnerella-1","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella-2","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella-3","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella-4","Gardnerella",compvsmut_averages$Reclassification)
+
+compvsmut_averages$Reclassification <- gsub("Gardnerella-5","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella-6","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella-7","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella-8","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella-9","Gardnerella",compvsmut_averages$Reclassification)
+
+compvsmut_averages$Reclassification <- gsub("Gardnerella piotii A","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella piotii B","Gardnerella",compvsmut_averages$Reclassification)
+
+compvsmut_averages$Reclassification <- gsub("Gardnerella vaginalis A","Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella vaginalis B","Gardnerella",compvsmut_averages$Reclassification)
+
+compvsmut_averages$Reclassification <- gsub("No Ascension","Unknown",compvsmut_averages$Reclassification)
+compvsmut_averages[is.na(compvsmut_averages)] <- "Unknown"
+
+compvsmut_averages$Reclassification <- gsub("Prevotella amnii","Prevotella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Prevotella bivia","Prevotella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Prevotella tannerae","Prevotella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Prevotella buccalis","Prevotella",compvsmut_averages$Reclassification)
+
+compvsmut_averages$Reclassification <- gsub("Gardnerella leopoldii", "Gardnerella",compvsmut_averages$Reclassification)
+compvsmut_averages$Reclassification <- gsub("Gardnerella swidsinskii", "Gardnerella",compvsmut_averages$Reclassification)
+
+compvsmut_averages$Reclassification <- as.factor(compvsmut_averages$Reclassification)
+```
+
+```{r}
+pdf(file='~/Documents/interactions_paper/compevsmut_average.pdf', width=10, height=10)
+
+ggplot(compvsmut_averages) + 
+  geom_point(aes(x=Mutualism,y=Competition,colour=Reclassification),size=4, alpha = 0.8) +
+  theme_classic()  +
+  scale_color_manual(values = colors4, name = "Bacterial Species") +
+  ylab("Competition Cost\n") + xlab("Mutualism Benefit\n") +
+  theme(axis.title = element_text(hjust = 0.5, size = 20,face="bold"),
+        axis.text = element_text(size = 15),
+        legend.title = element_text(face="bold")) +
+  scale_x_continuous(breaks=c(0,250,500), labels=c("0" = "Low Benefit", "250" = "250", "500" = "High Benefit"))+
+  scale_y_continuous(breaks=c(0,200,375,400), labels=c("0" = "Low Cost", "200" = "200", "375" ="375", "400" = "High Cost"))
+
+dev.off()
+```
+
+## Competed for Metabolites
+
+```{r cars}
+competed_metabolites <- count(competition_metabolites_all$metabolite)
+competed_metabolites$percent <- (competed_metabolites$freq/19427) * 100
+competed_metabolites <- arrange(competed_metabolites,desc(freq)) %>% filter(percent >= 30) %>% select(-freq) 
+competed_metabolites <- competed_metabolites %>% dplyr::rename("Metabolite" = "x", "Competition" = "percent")
+```
+
+## Shared Metabolites
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+mutual_metabolites <- count(mutual_metabolites_all$metabolite)
+mutual_metabolites$percent <- (mutual_metabolites$freq/19427) * 100
+mutual_metabolites <- arrange(mutual_metabolites,desc(freq)) %>% filter(percent >= 30)  %>% select(-freq) 
+mutual_metabolites <- mutual_metabolites %>% dplyr::rename("Metabolite" = "x", "Mutualism" = "percent")
+```
+
+#Mutual vs. Competed Metabolites
+
+```{r}
+shared_metabolites <- full_join(mutual_metabolites, competed_metabolites,)
+shared_metabolites[is.na(shared_metabolites)] <- 0
+shared_metabolites <- melt(shared_metabolites)
+shared_metabolites$value <- as.integer(shared_metabolites$value)
+
+pdf(file='~/Documents/interactions_paper/comp_mutu_metabo.pdf', width=12, height=12)
+shared_metabolites %>% 
+  mutate(
+    value2 = ifelse(variable=="Mutualism", value*(-1),
+                        value*1))%>%
+    ggplot(aes(x = reorder(Metabolite, value2, FUN = max),y = value2, fill=variable)) + 
+    geom_bar(stat = "identity") +
+    geom_text(aes(y=value2, label=value), color="black", size=3, hjust = -.3) +
+    theme_classic() + ylab("% of All Interactions") + 
+    xlab(NULL) +
+    scale_y_continuous(labels=c("-100" = "100", "-50" = "50", "0" = "0", "50" = "50", "100" = "100"))+
+    scale_fill_manual(values = c("#9DAD9D","#224B5D"))+
+    guides(fill=guide_legend(title=NULL))+
+    theme(axis.text.x = element_text(size = 10, angle = 45, vjust = 1, hjust = 1), 
+          axis.title.x = element_text(size = 20, face = "bold"), axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 15, face = "bold"), legend.position = c(0.8, 0.15))+
+    coord_flip()
+dev.off()
+```
+## Find most mutualistic & most competitive bacteria
+```{r}
+library(dplyr)
+library(BSDA)
+
+one_sided_ttest <- function(x, alternative) {
+  ttest <- t.test(x, alternative = alternative)
+  pvalue <- ttest$p.value
+  statistic <- ttest$statistic
+  results <- list(pvalue = pvalue, statistic = statistic)
+  return(results) # return one-tailed p-value
+}
+
+mutualism_ttest <- apply(input_mutualism, 2, one_sided_ttest, alternative = "greater")
+mutualism_ttest <- do.call(rbind, lapply(mutualism_ttest, as.data.frame(t)))
+GENRE1 <- rownames(mutualism_ttest)
+statistic <- unlist(mutualism_ttest$value.statistic)
+pvalues <- unlist(mutualism_ttest$value.pvalue)
+
+mutualism_pvalues <- data.frame(GENRE1, pvalues, statistic)
+mutualism_pvalues$p.value_adjust<- p.adjust(mutualism_pvalues$pvalues, method = "bonferroni")
+mutualism_pvalues_sig <- mutualism_pvalues %>% filter(p.value_adjust <= 0.05) %>% arrange(desc(statistic)) %>% head(5)
+mutualism_pvalues_sig <- left_join(mutualism_pvalues_sig, metadata)
+View(mutualism_pvalues_sig)
+```
+
+```{r}
+competitionm_ttest <- apply(input_competition, 2, one_sided_ttest, alternative = "greater")
+competitionm_ttest <- do.call(rbind, lapply(competitionm_ttest, as.data.frame(t)))
+GENRE1 <- rownames(competitionm_ttest)
+statistic <- unlist(competitionm_ttest$value.statistic)
+pvalues <- unlist(competitionm_ttest$value.pvalue)
+
+competition_pvalues <- data.frame(GENRE1, pvalues, statistic)
+competition_pvalues$p.value_adjust<- p.adjust(competition_pvalues$pvalues, method = "bonferroni")
+competition_pvalues_sig <- competition_pvalues %>% filter(p.value_adjust <= 0.05)  %>% arrange(desc(statistic)) %>% head(5)
+competition_pvalues_sig <- left_join(competition_pvalues_sig, metadata)
+View(competition_pvalues_sig)
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
