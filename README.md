@@ -11,7 +11,7 @@ This script contextualizes all existing .sbml reconstructions to reflect a BV+ c
 
 **Output:** A folder of contextualized (BV+ cervicovaginal fluid environment) metabolic network recontructions called 'BV+_reconstructions'. All updated reconstructions have an .sbml extension. This directory is available in our repository. 
 
-### <3_metabolite_sharing_modleing.ipynb>  
+### 3_metabolite_sharing_modleing.ipynb  
 This script determines which metabolites are shared and competed for between pairs bacterial reconstructions in an iterative manner. 
 
 **Input:** A folder of BV+ cervicovaginal fluid contextualized reconstructions called 'BV+_context'. All reconstructions in the folder should be in .sbml format. This directory is availabile in our repository. 
