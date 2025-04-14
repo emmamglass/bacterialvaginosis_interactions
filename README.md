@@ -4,14 +4,14 @@ In this study, we analyzed metagenomic data obtained from human vaginal swabs to
 
 ## [Simulations](https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/Simulations)
 Code required to generate and run the 15,000 simulations analyzed in the aforementioned study  
-#### 1_modelupdate_2_mediacontextualize.ipynb  
+#### <1_modelupdate_2_mediacontextualize.ipynb>
 This script contextualizes all existing .sbml reconstructions to reflect a BV+ cervicovaginal fluid environment. Metabolites are added to the in silico media environemnt that are statistically significantly present more in BV+ cervicovaginal fluid than in BV- cervicovaginal fluid (included metabolites specified in the .ipynb markdown file). Exchange reactions for each metabolite in the BV+ cervicovaginal fluid environment are set to 0,1000 to allow for metabolite import. 
 
 **Input:** A folder of metabolic network reconstructions called 'reconstructions'. All reconstructions must have .sbml extensions. This directory is available in our repository.
 
 **Output:** A folder of contextualized (BV+ cervicovaginal fluid environment) metabolic network recontructions called 'BV+_reconstructions'. All updated reconstructions have an .sbml extension. This directory is available in our repository. 
 
-#### 3_metabolite_sharing_modleing.ipynb  
+#### <3_metabolite_sharing_modleing.ipynb>  
 This script determines which metabolites are shared and competed for between pairs bacterial reconstructions in an iterative manner. 
 
 **Input:** A folder of BV+ cervicovaginal fluid contextualized reconstructions called 'BV+_context'. All reconstructions in the folder should be in .sbml format. This directory is availabile in our repository. 
