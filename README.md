@@ -30,7 +30,7 @@ This script creates a list of all transport reactions across the bacterial recon
 
 **Input:** A directory of reconstrucitons in .sbml format titled 'BV+_context'. This directory is available in this repository.
 
-**Output:** A file called transport_rxns.csv, which lists all transport reactions across reconstructions in the BV+_context repository.
+**Output:** A file called transport_rxns.csv, which lists all transport reactions across reconstructions in the BV+_context repository. This file is available in this directory. 
 
 ### reaction_annotations.ipynb
 This script determines KEGG reaction subsystems for each reaction in a list of reactions by interfacing with the ModelSEED reaction database and KEGG. 
