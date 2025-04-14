@@ -9,7 +9,7 @@ This script contextualizes all existing .sbml reconstructions to reflect a BV+ c
 
 **Input:** A folder of metabolic network reconstructions called 'reconstructions'. All reconstructions must have .sbml extensions. This directory is available in our repository.
 
-**Output:** A folder of contextualized (BV+ cervicovaginal fluid environment) metabolic network recontructions called 'BV+_reconstructions'. All updated reconstructions have an .sbml extension. This directory is available in our repository. 
+**Output:** A folder of contextualized (BV+ cervicovaginal fluid environment) metabolic network recontructions called 'BV+_context'. All updated reconstructions have an .sbml extension. This directory is available in our repository. 
 
 ### 3_metabolite_sharing_modleing.ipynb  
 This script determines which metabolites are shared and competed for between pairs bacterial reconstructions in an iterative manner. 
@@ -28,9 +28,9 @@ This script determines which metabolites are shared and competed for between pai
 ### 4_transprot_id.ipynb
 This script creates a list of all transport reactions across the bacterial reconstrucitons in the BV+_reconstrucitons directory.
 
-**Input:** A directory of reconstrucitons in .sbml format titled 'BV+_reconstructions'. This directory is available in this repository.
+**Input:** A directory of reconstrucitons in .sbml format titled 'BV+_context'. This directory is available in this repository.
 
-**Output:** A file called transport_rxns.csv, which lists all transport reactions across reconstructions in the BV+_reconstrucitons repository.
+**Output:** A file called transport_rxns.csv, which lists all transport reactions across reconstructions in the BV+_context repository.
 
 ### reaction_annotations.ipynb
 This script determines KEGG reaction subsystems for each reaction in a list of reactions by interfacing with the ModelSEED reaction database and KEGG. 
