@@ -110,16 +110,16 @@ Processed metabolomics data from _G. vaginalis_ across all spent media contexts.
 
 The raw files for the [method development](https://www.dropbox.com/scl/fo/yz5gpej71avgetdl2aa26/h?rlkey=m9wvvi0ep7y8qc00cnmnxc5jh&dl=0), [samples and standard curves](https://www.dropbox.com/scl/fo/wlsa6q8h8ruk6xkc2fiaz/h?rlkey=17krvbcmsbnfjajng3jzu4ncd&dl=0), as well as [metabolomics data](https://www.dropbox.com/scl/fo/dsaejf46kphv5vzhc67j0/h?rlkey=31rfyt9nam8m91i9py38zpuvu&dl=0) from our untargeted metabolomics analysis performed by the UVA mass spectrometry team
 
-## [reconstructions]([https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/reconstructions])
+## [reconstructions](https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/reconstructions)
 This directory contains all raw reconstructions (not contextualized, not used in simulation script /Simulations/3_metabolite_sharing_modeling.ipynb). 
 
-## [update_reconstructions]([https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/update_reconstructions]) 
+## [update_reconstructions](https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/update_reconstructions) 
 This directory contains all reconstructions that are created during an intermediate step of the contextualization script. (/Simulations/1_modelupdate_2_mediacontextualize.ipynb). These are not the final reconstructions used in the simulation script (/Simulations/3_metabolite_sharing_modeling.ipynb).
 
-## [BV+_context]([https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/BV%2B_context])
+## [BV+_context](https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/BV%2B_context)
 This directory contains all reconstructions that were contextualized with BV+ cervicovaginal fluid metabolites. These  are the final reconstrucitons used in the simulation script (/Simulations/3_metabolite_sharing_modeling.ipynb).
 
-## [SpeciesRelativeAbundance.csv]([https://github.com/lrd3uu/bacterialvaginosis_interactions/blob/main/SpeciesRelativeAbundance.csv])
+## [SpeciesRelativeAbundance.csv](https://github.com/lrd3uu/bacterialvaginosis_interactions/blob/main/SpeciesRelativeAbundance.csv)
 This file provides the relative abundance of bacterial species present in each vaginal swab used in these analyses (processed metagenomics data).
 
 
