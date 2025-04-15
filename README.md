@@ -119,7 +119,7 @@ This directory contains all reconstructions that are created during an intermedi
 ## [BV+_context]([https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/BV%2B_context])
 This directory contains all reconstructions that were contextualized with BV+ cervicovaginal fluid metabolites. These  are the final reconstrucitons used in the simulation script (/Simulations/3_metabolite_sharing_modeling.ipynb).
 
-## SpeciesRelativeAbundance.csv ([https://github.com/lrd3uu/bacterialvaginosis_interactions/blob/main/SpeciesRelativeAbundance.csv])
+## [SpeciesRelativeAbundance.csv]([https://github.com/lrd3uu/bacterialvaginosis_interactions/blob/main/SpeciesRelativeAbundance.csv])
 This file provides the relative abundance of bacterial species present in each vaginal swab used in these analyses (processed metagenomics data).
 
 
