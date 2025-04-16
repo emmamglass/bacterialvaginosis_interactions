@@ -108,7 +108,7 @@ Processed metabolomics data from _G. piotii_ across all spent media contexts.
 ### BAF_GK_3544_Vaginalis_metabolomic_data.xlsx
 Processed metabolomics data from _G. vaginalis_ across all spent media contexts. 
 
-The raw files for the [method development](https://www.dropbox.com/scl/fo/yz5gpej71avgetdl2aa26/h?rlkey=m9wvvi0ep7y8qc00cnmnxc5jh&dl=0), [samples and standard curves](https://www.dropbox.com/scl/fo/wlsa6q8h8ruk6xkc2fiaz/h?rlkey=17krvbcmsbnfjajng3jzu4ncd&dl=0), as well as [metabolomics data](https://www.dropbox.com/scl/fo/dsaejf46kphv5vzhc67j0/h?rlkey=31rfyt9nam8m91i9py38zpuvu&dl=0) from our untargeted metabolomics analysis performed by the UVA mass spectrometry team
+The raw files for the [method development](https://www.dropbox.com/scl/fo/wlsa6q8h8ruk6xkc2fiaz/h?rlkey=17krvbcmsbnfjajng3jzu4ncd&dl=0), [samples and standard curves](https://www.dropbox.com/scl/fo/yz5gpej71avgetdl2aa26/h?rlkey=m9wvvi0ep7y8qc00cnmnxc5jh&dl=0), as well as [metabolomics data](https://www.dropbox.com/scl/fo/dsaejf46kphv5vzhc67j0/h?rlkey=31rfyt9nam8m91i9py38zpuvu&dl=0) from our untargeted metabolomics analysis performed by the UVA mass spectrometry team. 
 
 ## [reconstructions](https://github.com/lrd3uu/bacterialvaginosis_interactions/tree/main/reconstructions)
 This directory contains all raw reconstructions (not contextualized, not used in simulation script /Simulations/3_metabolite_sharing_modeling.ipynb). 
